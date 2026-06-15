@@ -2,50 +2,25 @@
 <p-confirmDialog />
 
 @if (network.offline()) {
-  <div class="fox-offline-banner" role="alert" aria-live="assertive">
+  <div
+    class="fox-offline-banner"
+    role="alert"
+    aria-live="assertive"
+  >
     <i class="pi pi-exclamation-triangle mr-2"></i>
-    Le backend semble injoignable ({{ network.consecutiveErrors() }} erreurs consécutives). Vérifie
-    que l'API tourne sur <code>http://127.0.0.1:8000</code>.
+    Le backend semble injoignable ({{ network.consecutiveErrors() }} erreurs consécutives).
+    Vérifie que l'API tourne sur
+    <code>http://127.0.0.1:8000</code>.
   </div>
 }
 
 @if (auth.isLoggedIn()) {
   <div class="fox-shell">
-    <p-menubar [model]="topMenu()" styleClass="border-noround fox-menubar">
-      <ng-template pTemplate="start">
-        <a routerLink="/" class="flex align-items-center gap-2 no-underline mr-2">
-          <i class="pi pi-bolt" style="font-size: 1.4rem; color: var(--fox-primary)"></i>
-          <span class="fox-brand text-xl">FoxRunner</span>
-        </a>
-      </ng-template>
-      <ng-template pTemplate="end">
-        <div class="flex align-items-center gap-2">
-          <p-button
-            [icon]="theme.isDark() ? 'pi pi-sun' : 'pi pi-moon'"
-            [rounded]="true"
-            severity="secondary"
-            [text]="true"
-            (onClick)="theme.toggle()"
-            pTooltip="Basculer thème"
-            ariaLabel="Basculer thème"
-          />
-          <p-menu #userMenuPopup [model]="userMenu()" [popup]="true" appendTo="body" />
-          <p-button
-            icon="pi pi-user"
-            [label]="auth.currentUser()?.email ?? ''"
-            severity="secondary"
-            [text]="true"
-            (onClick)="userMenuPopup.toggle($event)"
-            ariaLabel="Menu utilisateur"
-            aria-haspopup="true"
-            class="fox-user-menu-button"
-          />
-        </div>
-      </ng-template>
-    </p-menubar>
+    <app-topmenu />
     <main class="fox-main">
       <router-outlet />
     </main>
+    <app-footer />
   </div>
 } @else {
   <router-outlet />

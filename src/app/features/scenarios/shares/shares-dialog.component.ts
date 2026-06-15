@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -8,7 +8,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
 import { ScenariosService } from '../../../core/api/scenarios.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-shares-dialog',
@@ -21,7 +20,6 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
     TableModule,
     ConfirmDialogModule,
     EmptyStateComponent,
-    TableToolbarComponent,
   ],
   template: `
     <p-dialog
@@ -57,39 +55,16 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
             message="Ajoute un utilisateur pour lui donner un accès lecture."
           />
         } @else {
-          <p-table
-            #table
-            [value]="tableRows()"
-            [loading]="loading()"
-            [globalFilterFields]="['user_id']"
-            styleClass="p-datatable-sm"
-          >
-            <ng-template pTemplate="caption">
-              <app-table-toolbar [table]="table" placeholder="Rechercher un utilisateur" />
-            </ng-template>
+          <p-table [value]="userIds()" [loading]="loading()" styleClass="p-datatable-sm">
             <ng-template pTemplate="header">
               <tr>
-                <th pSortableColumn="user_id">Utilisateur <p-sortIcon field="user_id" /></th>
+                <th>Utilisateur</th>
                 <th style="width: 5rem"></th>
-              </tr>
-              <tr>
-                <th>
-                  <p-columnFilter
-                    field="user_id"
-                    type="text"
-                    matchMode="contains"
-                    [showMenu]="false"
-                    placeholder="Filtrer"
-                  />
-                </th>
-                <th></th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-u>
               <tr>
-                <td>
-                  <code>{{ u.user_id }}</code>
-                </td>
+                <td><code>{{ u }}</code></td>
                 <td>
                   <p-button
                     icon="pi pi-times"
@@ -97,7 +72,7 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
                     [text]="true"
                     severity="danger"
                     size="small"
-                    (onClick)="askRemove(u.user_id)"
+                    (onClick)="askRemove(u)"
                   />
                 </td>
               </tr>
@@ -128,7 +103,6 @@ export class SharesDialogComponent {
   @Output() readonly visibleChange = new EventEmitter<boolean>();
 
   readonly userIds = signal<string[]>([]);
-  readonly tableRows = computed(() => this.userIds().map((user_id) => ({ user_id })));
   readonly loading = signal(false);
   readonly saving = signal(false);
   newUserId = '';

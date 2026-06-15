@@ -1,8 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
-import { AuthService } from '../../core/auth/auth.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
@@ -59,6 +58,4 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     </div>
   `,
 })
-export class DashboardComponent {
-  readonly auth = inject(AuthService);
-}
+export class DashboardComponent {}

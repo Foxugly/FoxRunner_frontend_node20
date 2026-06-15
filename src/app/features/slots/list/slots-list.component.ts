@@ -9,28 +9,22 @@ import { DialogModule } from 'primeng/dialog';
 import { InputMaskModule } from 'primeng/inputmask';
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
-import { TableModule } from 'primeng/table';
+import { DataTableComponent } from '../../../shared/components/data-table/data-table.component';
+import { CellTemplateDirective } from '../../../shared/components/data-table/cell-template.directive';
+import type { DataTableColumn } from '../../../shared/components/data-table/data-table.types';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ScenariosService } from '../../../core/api/scenarios.service';
 import { SlotsService } from '../../../core/api/slots.service';
-import { fetchAllPages } from '../../../core/api/pagination';
 import { newIdempotencyKey } from '../../../core/utils/idempotency';
 import type { Slot, SlotSummary, ScenarioSummary } from '../../../core/api/types';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 interface DayOption {
   value: number;
   label: string;
-}
-
-interface SlotTableRow extends SlotSummary {
-  days_label: string;
-  schedule: string;
 }
 
 const DAYS: readonly DayOption[] = [
@@ -49,7 +43,6 @@ const DAYS: readonly DayOption[] = [
   imports: [
     FormsModule,
     ReactiveFormsModule,
-    TableModule,
     TagModule,
     ButtonModule,
     TooltipModule,
@@ -62,8 +55,8 @@ const DAYS: readonly DayOption[] = [
     AutoCompleteModule,
     ConfirmDialogModule,
     PageHeaderComponent,
-    EmptyStateComponent,
-    TableToolbarComponent,
+    DataTableComponent,
+    CellTemplateDirective,
   ],
   template: `
     <app-page-header icon="pi-calendar" title="Slots">
@@ -78,132 +71,57 @@ const DAYS: readonly DayOption[] = [
       <p-button label="Nouveau" icon="pi pi-plus" (onClick)="openCreate()" />
     </app-page-header>
 
-    <p-table
-      #table
+    <app-data-table
       [value]="items()"
-      [paginator]="true"
-      [rows]="25"
+      [columns]="columns"
       [loading]="loading()"
-      [rowsPerPageOptions]="[10, 25, 50]"
-      [globalFilterFields]="['slot_id', 'scenario_id', 'days_label', 'schedule']"
       dataKey="slot_id"
-      styleClass="p-datatable-sm"
+      emptyIcon="pi-calendar"
+      emptyTitle="Aucun slot"
+      emptyMessage="Crée un premier slot pour planifier une exécution."
     >
-      <ng-template pTemplate="caption">
-        <app-table-toolbar [table]="table" placeholder="Rechercher dans les slots" />
+      <ng-template appCell="days" let-s>
+        <div class="flex gap-1">
+          @for (d of days; track d.value) {
+            <p-tag
+              [severity]="s.days?.includes(d.value) ? 'success' : 'secondary'"
+              [value]="d.label"
+            />
+          }
+        </div>
       </ng-template>
-      <ng-template pTemplate="header">
-        <tr>
-          <th pSortableColumn="slot_id">Slot <p-sortIcon field="slot_id" /></th>
-          <th pSortableColumn="scenario_id">Scénario <p-sortIcon field="scenario_id" /></th>
-          <th pSortableColumn="days_label">Jours <p-sortIcon field="days_label" /></th>
-          <th pSortableColumn="schedule">Horaire <p-sortIcon field="schedule" /></th>
-          <th pSortableColumn="enabled" style="width: 6rem">
-            Actif <p-sortIcon field="enabled" />
-          </th>
-          <th style="width: 9rem">Actions</th>
-        </tr>
-        <tr>
-          <th>
-            <p-columnFilter
-              field="slot_id"
-              type="text"
-              matchMode="contains"
-              [showMenu]="false"
-              placeholder="Filtrer"
-            />
-          </th>
-          <th>
-            <p-columnFilter
-              field="scenario_id"
-              type="text"
-              matchMode="contains"
-              [showMenu]="false"
-              placeholder="Filtrer"
-            />
-          </th>
-          <th>
-            <p-columnFilter
-              field="days_label"
-              type="text"
-              matchMode="contains"
-              [showMenu]="false"
-              placeholder="Lu, Ma..."
-            />
-          </th>
-          <th>
-            <p-columnFilter
-              field="schedule"
-              type="text"
-              matchMode="contains"
-              [showMenu]="false"
-              placeholder="08:00"
-            />
-          </th>
-          <th><p-columnFilter field="enabled" type="boolean" /></th>
-          <th></th>
-        </tr>
+      <ng-template appCell="schedule" let-s>{{ s.start }} — {{ s.end }}</ng-template>
+      <ng-template appCell="enabled" let-s>
+        <p-toggleswitch
+          [(ngModel)]="s.enabled"
+          (onChange)="toggleEnabled(s)"
+          [ariaLabel]="'Actif — slot ' + s.slot_id"
+        />
       </ng-template>
-      <ng-template pTemplate="body" let-s>
-        <tr>
-          <td>{{ s.slot_id }}</td>
-          <td>{{ s.scenario_id }}</td>
-          <td>
-            <div class="flex gap-1">
-              @for (d of days; track d.value) {
-                <p-tag
-                  [severity]="s.days?.includes(d.value) ? 'success' : 'secondary'"
-                  [value]="d.label"
-                />
-              }
-            </div>
-          </td>
-          <td>{{ s.start }} — {{ s.end }}</td>
-          <td>
-            <p-toggleswitch
-              [(ngModel)]="s.enabled"
-              (onChange)="toggleEnabled(s)"
-              [ariaLabel]="'Actif — slot ' + s.slot_id"
-            />
-          </td>
-          <td>
-            <div class="flex gap-1">
-              <p-button
-                icon="pi pi-pencil"
-                [rounded]="true"
-                [text]="true"
-                size="small"
-                severity="secondary"
-                (onClick)="openEdit(s)"
-                pTooltip="Modifier"
-              />
-              <p-button
-                icon="pi pi-trash"
-                [rounded]="true"
-                [text]="true"
-                size="small"
-                severity="danger"
-                (onClick)="askDelete(s)"
-                pTooltip="Supprimer"
-              />
-            </div>
-          </td>
-        </tr>
+      <ng-template appCell="actions" let-s>
+        <div class="flex gap-1">
+          <p-button
+            icon="pi pi-pencil"
+            [rounded]="true"
+            [text]="true"
+            size="small"
+            severity="secondary"
+            (onClick)="openEdit(s)"
+            pTooltip="Modifier"
+          />
+          <p-button
+            icon="pi pi-trash"
+            [rounded]="true"
+            [text]="true"
+            size="small"
+            severity="danger"
+            (onClick)="askDelete(s)"
+            pTooltip="Supprimer"
+          />
+        </div>
       </ng-template>
-      <ng-template pTemplate="emptymessage">
-        <tr>
-          <td colspan="6">
-            <app-empty-state
-              icon="pi-calendar"
-              title="Aucun slot"
-              message="Crée un premier slot pour planifier une exécution."
-            >
-              <p-button label="Créer un slot" icon="pi pi-plus" (onClick)="openCreate()" />
-            </app-empty-state>
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
+      <p-button emptyActions label="Créer un slot" icon="pi pi-plus" (onClick)="openCreate()" />
+    </app-data-table>
 
     <p-dialog
       [modal]="true"
@@ -215,7 +133,12 @@ const DAYS: readonly DayOption[] = [
       <form [formGroup]="form" class="flex flex-column gap-3">
         <div class="flex flex-column gap-2">
           <label for="slot_id">Identifiant du slot</label>
-          <input id="slot_id" pInputText formControlName="slot_id" placeholder="morning_check" />
+          <input
+            id="slot_id"
+            pInputText
+            formControlName="slot_id"
+            placeholder="morning_check"
+          />
         </div>
         <div class="flex flex-column gap-2">
           <label for="scenario_id">Scénario</label>
@@ -271,13 +194,7 @@ const DAYS: readonly DayOption[] = [
         </div>
       </form>
       <ng-template pTemplate="footer">
-        <p-button
-          label="Annuler"
-          severity="secondary"
-          [text]="true"
-          (onClick)="closeDialog()"
-          [disabled]="saving()"
-        />
+        <p-button label="Annuler" severity="secondary" [text]="true" (onClick)="closeDialog()" [disabled]="saving()" />
         <p-button
           label="Enregistrer"
           icon="pi pi-save"
@@ -299,9 +216,18 @@ export class SlotsListComponent implements OnInit {
   private readonly confirm = inject(ConfirmationService);
   private readonly messages = inject(MessageService);
 
-  readonly items = signal<SlotTableRow[]>([]);
+  readonly items = signal<SlotSummary[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
+
+  readonly columns: DataTableColumn[] = [
+    { field: 'slot_id', header: 'Slot', sortable: true },
+    { field: 'scenario_id', header: 'Scénario', sortable: true },
+    { field: 'days', header: 'Jours', searchable: false },
+    { field: 'schedule', header: 'Horaire', searchable: false },
+    { field: 'enabled', header: 'Actif', width: '6rem', searchable: false },
+    { field: 'actions', header: 'Actions', width: '9rem', searchable: false },
+  ];
 
   readonly days = DAYS;
   readonly daysOptions = [...DAYS];
@@ -337,19 +263,12 @@ export class SlotsListComponent implements OnInit {
   private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const slots = await fetchAllPages((limit, offset) =>
-        this.slotsService.list({ limit, offset }),
-      );
-
-      this.items.set(
-        slots.map((slot) => ({
-          ...slot,
-          days_label: DAYS.filter((day) => slot.days.includes(day.value))
-            .map((day) => day.label)
-            .join(' '),
-          schedule: `${slot.start} - ${slot.end}`,
-        })),
-      );
+      // Bounded table: load all rows for client-side search/sort (500 is a guard rail).
+      const page = await this.slotsService.list({ limit: 500, offset: 0 });
+      this.items.set(page.items);
+      if (page.total > 500) {
+        console.warn(`slots: ${page.total} rows exceed the 500 client cap; showing first 500.`);
+      }
     } catch {
       /* toast */
     } finally {

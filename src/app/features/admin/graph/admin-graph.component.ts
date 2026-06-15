@@ -8,17 +8,15 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import { TableModule } from 'primeng/table';
+import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { GraphService } from '../../../core/api/graph.service';
-import { fetchAllPages } from '../../../core/api/pagination';
 import type { GraphNotification, GraphSubscription } from '../../../core/api/types';
 import { ApiDatePipe } from '../../../shared/pipes/api-date.pipe';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-admin-graph',
@@ -40,10 +38,12 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
     ApiDatePipe,
     EmptyStateComponent,
     PageHeaderComponent,
-    TableToolbarComponent,
   ],
   template: `
-    <app-page-header icon="pi-cloud" title="Microsoft Graph">
+    <app-page-header
+      icon="pi-cloud"
+      title="Microsoft Graph"
+    >
       <p-button
         label="Retour admin"
         icon="pi pi-arrow-left"
@@ -68,49 +68,37 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
               [loading]="subsLoading()"
               (onClick)="reloadSubs()"
             />
-            <p-button label="Créer un abonnement" icon="pi pi-plus" (onClick)="openCreate()" />
+            <p-button
+              label="Créer un abonnement"
+              icon="pi pi-plus"
+              (onClick)="openCreate()"
+            />
           </div>
           <p-table
-            #subsTable
             [value]="subs()"
+            [lazy]="true"
             [paginator]="true"
-            [rows]="25"
+            [rows]="subsRows()"
+            [first]="subsFirst()"
+            [totalRecords]="subsTotal()"
             [loading]="subsLoading()"
+            (onLazyLoad)="onSubsLoad($event)"
             [rowsPerPageOptions]="[10, 25, 50]"
-            [globalFilterFields]="['subscription_id', 'resource', 'change_type']"
             dataKey="subscription_id"
             styleClass="p-datatable-sm"
           >
-            <ng-template pTemplate="caption">
-              <app-table-toolbar [table]="subsTable" placeholder="Rechercher un abonnement" />
-            </ng-template>
             <ng-template pTemplate="header">
               <tr>
-                <th pSortableColumn="subscription_id">ID <p-sortIcon field="subscription_id" /></th>
-                <th pSortableColumn="resource">Ressource <p-sortIcon field="resource" /></th>
-                <th pSortableColumn="change_type" style="width: 9rem">
-                  Type <p-sortIcon field="change_type" />
-                </th>
-                <th pSortableColumn="expiration_datetime" style="width: 14rem">
-                  Expire le <p-sortIcon field="expiration_datetime" />
-                </th>
+                <th>ID</th>
+                <th>Ressource</th>
+                <th style="width: 9rem">Type</th>
+                <th style="width: 14rem">Expire le</th>
                 <th style="width: 9rem">Actions</th>
-              </tr>
-              <tr>
-                <th><p-columnFilter field="subscription_id" type="text" [showMenu]="false" /></th>
-                <th><p-columnFilter field="resource" type="text" [showMenu]="false" /></th>
-                <th><p-columnFilter field="change_type" type="text" [showMenu]="false" /></th>
-                <th>
-                  <p-columnFilter field="expiration_datetime" type="text" [showMenu]="false" />
-                </th>
-                <th></th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-s>
               <tr>
-                <td>
-                  <code class="text-xs">{{ s.subscription_id }}</code>
-                </td>
+                <td><code class="text-xs">{{ s.subscription_id }}</code></td>
                 <td class="text-xs">{{ s.resource }}</td>
                 <td><p-tag severity="info" [value]="s.change_type" /></td>
                 <td>
@@ -167,55 +155,31 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
             />
           </div>
           <p-table
-            #notifsTable
             [value]="notifs()"
+            [lazy]="true"
             [paginator]="true"
-            [rows]="50"
+            [rows]="notifsRows()"
+            [first]="notifsFirst()"
+            [totalRecords]="notifsTotal()"
             [loading]="notifsLoading()"
+            (onLazyLoad)="onNotifsLoad($event)"
             [rowsPerPageOptions]="[20, 50, 100]"
-            [globalFilterFields]="[
-              'created_at',
-              'subscription_id',
-              'change_type',
-              'resource',
-              'lifecycle_event',
-            ]"
             dataKey="id"
             styleClass="p-datatable-sm"
           >
-            <ng-template pTemplate="caption">
-              <app-table-toolbar [table]="notifsTable" placeholder="Rechercher une notification" />
-            </ng-template>
             <ng-template pTemplate="header">
               <tr>
-                <th pSortableColumn="created_at" style="width: 14rem">
-                  Reçu <p-sortIcon field="created_at" />
-                </th>
-                <th pSortableColumn="subscription_id">
-                  Subscription <p-sortIcon field="subscription_id" />
-                </th>
-                <th pSortableColumn="change_type" style="width: 9rem">
-                  Change <p-sortIcon field="change_type" />
-                </th>
-                <th pSortableColumn="resource">Ressource <p-sortIcon field="resource" /></th>
-                <th pSortableColumn="lifecycle_event">
-                  Lifecycle <p-sortIcon field="lifecycle_event" />
-                </th>
-              </tr>
-              <tr>
-                <th><p-columnFilter field="created_at" type="text" [showMenu]="false" /></th>
-                <th><p-columnFilter field="subscription_id" type="text" [showMenu]="false" /></th>
-                <th><p-columnFilter field="change_type" type="text" [showMenu]="false" /></th>
-                <th><p-columnFilter field="resource" type="text" [showMenu]="false" /></th>
-                <th><p-columnFilter field="lifecycle_event" type="text" [showMenu]="false" /></th>
+                <th style="width: 14rem">Reçu</th>
+                <th>Subscription</th>
+                <th style="width: 9rem">Change</th>
+                <th>Ressource</th>
+                <th>Lifecycle</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-n>
               <tr>
                 <td>{{ n.created_at | apiDate: 'medium' }}</td>
-                <td>
-                  <code class="text-xs">{{ n.subscription_id }}</code>
-                </td>
+                <td><code class="text-xs">{{ n.subscription_id }}</code></td>
                 <td><p-tag severity="info" [value]="n.change_type" /></td>
                 <td class="text-xs">{{ n.resource }}</td>
                 <td>{{ n.lifecycle_event || '—' }}</td>
@@ -243,7 +207,12 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
       <form [formGroup]="createForm" class="flex flex-column gap-3">
         <div class="flex flex-column gap-2">
           <label for="resource">Ressource</label>
-          <input id="resource" pInputText formControlName="resource" placeholder="/me/messages" />
+          <input
+            id="resource"
+            pInputText
+            formControlName="resource"
+            placeholder="/me/messages"
+          />
         </div>
         <div class="flex flex-column gap-2">
           <label for="change_type">Change type</label>
@@ -310,10 +279,14 @@ import { TableToolbarComponent } from '../../../shared/components/table-toolbar/
       <div class="flex flex-column gap-3">
         <div class="text-color-secondary">
           Nouvelle date d'expiration pour
-          <code>{{ renewTarget()?.subscription_id }}</code
-          >.
+          <code>{{ renewTarget()?.subscription_id }}</code>.
         </div>
-        <p-datepicker [(ngModel)]="renewDate" [showTime]="true" hourFormat="24" appendTo="body" />
+        <p-datepicker
+          [(ngModel)]="renewDate"
+          [showTime]="true"
+          hourFormat="24"
+          appendTo="body"
+        />
       </div>
       <ng-template pTemplate="footer">
         <p-button
@@ -343,10 +316,14 @@ export class AdminGraphComponent implements OnInit {
 
   readonly subs = signal<GraphSubscription[]>([]);
   readonly subsTotal = signal(0);
+  readonly subsRows = signal(25);
+  readonly subsFirst = signal(0);
   readonly subsLoading = signal(false);
 
   readonly notifs = signal<GraphNotification[]>([]);
   readonly notifsTotal = signal(0);
+  readonly notifsRows = signal(50);
+  readonly notifsFirst = signal(0);
   readonly notifsLoading = signal(false);
 
   readonly saving = signal(false);
@@ -364,26 +341,40 @@ export class AdminGraphComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    void this.loadSubs();
-    void this.loadNotifs();
+    void this.loadSubs(0, this.subsRows());
+    void this.loadNotifs(0, this.notifsRows());
+  }
+
+  onSubsLoad(ev: TableLazyLoadEvent): void {
+    const first = ev.first ?? 0;
+    const rows = ev.rows ?? this.subsRows();
+    this.subsFirst.set(first);
+    this.subsRows.set(rows);
+    void this.loadSubs(first, rows);
   }
 
   reloadSubs(): void {
-    void this.loadSubs();
+    void this.loadSubs(this.subsFirst(), this.subsRows());
+  }
+
+  onNotifsLoad(ev: TableLazyLoadEvent): void {
+    const first = ev.first ?? 0;
+    const rows = ev.rows ?? this.notifsRows();
+    this.notifsFirst.set(first);
+    this.notifsRows.set(rows);
+    void this.loadNotifs(first, rows);
   }
 
   reloadNotifs(): void {
-    void this.loadNotifs();
+    void this.loadNotifs(this.notifsFirst(), this.notifsRows());
   }
 
-  private async loadSubs(): Promise<void> {
+  private async loadSubs(offset: number, limit: number): Promise<void> {
     this.subsLoading.set(true);
     try {
-      const items = await fetchAllPages((limit, offset) =>
-        this.service.listSubscriptions(limit, offset),
-      );
-      this.subs.set(items);
-      this.subsTotal.set(items.length);
+      const page = await this.service.listSubscriptions(limit, offset);
+      this.subs.set(page.items);
+      this.subsTotal.set(page.total);
     } catch {
       /* toast */
     } finally {
@@ -391,14 +382,12 @@ export class AdminGraphComponent implements OnInit {
     }
   }
 
-  private async loadNotifs(): Promise<void> {
+  private async loadNotifs(offset: number, limit: number): Promise<void> {
     this.notifsLoading.set(true);
     try {
-      const items = await fetchAllPages((limit, offset) =>
-        this.service.listNotifications(limit, offset),
-      );
-      this.notifs.set(items);
-      this.notifsTotal.set(items.length);
+      const page = await this.service.listNotifications(limit, offset);
+      this.notifs.set(page.items);
+      this.notifsTotal.set(page.total);
     } catch {
       /* toast */
     } finally {
