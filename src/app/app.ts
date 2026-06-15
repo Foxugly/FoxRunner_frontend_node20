@@ -3,6 +3,7 @@ import { RouterLink, RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MenuModule } from 'primeng/menu';
 import { MenubarModule } from 'primeng/menubar';
 import { ToastModule } from 'primeng/toast';
 import { AuthService } from './core/auth/auth.service';
@@ -16,6 +17,7 @@ import { ThemeService } from './core/theme/theme.service';
     RouterOutlet,
     RouterLink,
     MenubarModule,
+    MenuModule,
     ButtonModule,
     ToastModule,
     ConfirmDialogModule,
@@ -42,6 +44,19 @@ export class App {
     }
     return base;
   });
+
+  readonly userMenu = computed<MenuItem[]>(() => [
+    {
+      label: 'Profil',
+      icon: 'pi pi-user',
+      routerLink: '/profile',
+    },
+    {
+      label: 'Déconnexion',
+      icon: 'pi pi-sign-out',
+      command: () => void this.logout(),
+    },
+  ]);
 
   async logout(): Promise<void> {
     await this.auth.logout();

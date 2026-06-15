@@ -9,21 +9,28 @@ import { DialogModule } from 'primeng/dialog';
 import { InputMaskModule } from 'primeng/inputmask';
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ScenariosService } from '../../../core/api/scenarios.service';
 import { SlotsService } from '../../../core/api/slots.service';
+import { fetchAllPages } from '../../../core/api/pagination';
 import { newIdempotencyKey } from '../../../core/utils/idempotency';
 import type { Slot, SlotSummary, ScenarioSummary } from '../../../core/api/types';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 interface DayOption {
   value: number;
   label: string;
+}
+
+interface SlotTableRow extends SlotSummary {
+  days_label: string;
+  schedule: string;
 }
 
 const DAYS: readonly DayOption[] = [
@@ -56,9 +63,10 @@ const DAYS: readonly DayOption[] = [
     ConfirmDialogModule,
     PageHeaderComponent,
     EmptyStateComponent,
+    TableToolbarComponent,
   ],
   template: `
-    <app-page-header icon="pi-calendar" title="Slots" subtitle="Créneaux de planification hebdomadaires">
+    <app-page-header icon="pi-calendar" title="Slots">
       <p-button
         icon="pi pi-refresh"
         severity="secondary"
@@ -71,26 +79,69 @@ const DAYS: readonly DayOption[] = [
     </app-page-header>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="25"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[10, 25, 50]"
+      [globalFilterFields]="['slot_id', 'scenario_id', 'days_label', 'schedule']"
       dataKey="slot_id"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher dans les slots" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th>Slot</th>
-          <th>Scénario</th>
-          <th>Jours</th>
-          <th>Horaire</th>
-          <th style="width: 6rem">Actif</th>
+          <th pSortableColumn="slot_id">Slot <p-sortIcon field="slot_id" /></th>
+          <th pSortableColumn="scenario_id">Scénario <p-sortIcon field="scenario_id" /></th>
+          <th pSortableColumn="days_label">Jours <p-sortIcon field="days_label" /></th>
+          <th pSortableColumn="schedule">Horaire <p-sortIcon field="schedule" /></th>
+          <th pSortableColumn="enabled" style="width: 6rem">
+            Actif <p-sortIcon field="enabled" />
+          </th>
           <th style="width: 9rem">Actions</th>
+        </tr>
+        <tr>
+          <th>
+            <p-columnFilter
+              field="slot_id"
+              type="text"
+              matchMode="contains"
+              [showMenu]="false"
+              placeholder="Filtrer"
+            />
+          </th>
+          <th>
+            <p-columnFilter
+              field="scenario_id"
+              type="text"
+              matchMode="contains"
+              [showMenu]="false"
+              placeholder="Filtrer"
+            />
+          </th>
+          <th>
+            <p-columnFilter
+              field="days_label"
+              type="text"
+              matchMode="contains"
+              [showMenu]="false"
+              placeholder="Lu, Ma..."
+            />
+          </th>
+          <th>
+            <p-columnFilter
+              field="schedule"
+              type="text"
+              matchMode="contains"
+              [showMenu]="false"
+              placeholder="08:00"
+            />
+          </th>
+          <th><p-columnFilter field="enabled" type="boolean" /></th>
+          <th></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-s>
@@ -164,12 +215,7 @@ const DAYS: readonly DayOption[] = [
       <form [formGroup]="form" class="flex flex-column gap-3">
         <div class="flex flex-column gap-2">
           <label for="slot_id">Identifiant du slot</label>
-          <input
-            id="slot_id"
-            pInputText
-            formControlName="slot_id"
-            placeholder="morning_check"
-          />
+          <input id="slot_id" pInputText formControlName="slot_id" placeholder="morning_check" />
         </div>
         <div class="flex flex-column gap-2">
           <label for="scenario_id">Scénario</label>
@@ -225,7 +271,13 @@ const DAYS: readonly DayOption[] = [
         </div>
       </form>
       <ng-template pTemplate="footer">
-        <p-button label="Annuler" severity="secondary" [text]="true" (onClick)="closeDialog()" [disabled]="saving()" />
+        <p-button
+          label="Annuler"
+          severity="secondary"
+          [text]="true"
+          (onClick)="closeDialog()"
+          [disabled]="saving()"
+        />
         <p-button
           label="Enregistrer"
           icon="pi pi-save"
@@ -247,10 +299,7 @@ export class SlotsListComponent implements OnInit {
   private readonly confirm = inject(ConfirmationService);
   private readonly messages = inject(MessageService);
 
-  readonly items = signal<SlotSummary[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(25);
-  readonly first = signal(0);
+  readonly items = signal<SlotTableRow[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
 
@@ -278,27 +327,29 @@ export class SlotsListComponent implements OnInit {
   readonly slotIdEditable = computed(() => this.editingId() === null);
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
-  }
-
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
+    void this.load();
   }
 
   reload(): void {
-    void this.load(this.first(), this.rows());
+    void this.load();
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const page = await this.slotsService.list({ limit, offset });
-      this.items.set(page.items);
-      this.total.set(page.total);
+      const slots = await fetchAllPages((limit, offset) =>
+        this.slotsService.list({ limit, offset }),
+      );
+
+      this.items.set(
+        slots.map((slot) => ({
+          ...slot,
+          days_label: DAYS.filter((day) => slot.days.includes(day.value))
+            .map((day) => day.label)
+            .join(' '),
+          schedule: `${slot.start} - ${slot.end}`,
+        })),
+      );
     } catch {
       /* toast */
     } finally {

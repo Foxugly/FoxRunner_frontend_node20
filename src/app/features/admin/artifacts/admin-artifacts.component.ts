@@ -5,13 +5,15 @@ import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ArtifactsService } from '../../../core/api/artifacts.service';
+import { fetchAllPages } from '../../../core/api/pagination';
 import type { Artifact } from '../../../core/api/types';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 interface KindOption {
   label: string;
@@ -38,13 +40,10 @@ const KIND_OPTIONS: KindOption[] = [
     TooltipModule,
     EmptyStateComponent,
     PageHeaderComponent,
+    TableToolbarComponent,
   ],
   template: `
-    <app-page-header
-      icon="pi-image"
-      title="Artefacts"
-      subtitle="Captures Selenium conservées en local"
-    >
+    <app-page-header icon="pi-image" title="Artefacts">
       <p-button
         label="Retour admin"
         icon="pi pi-arrow-left"
@@ -76,13 +75,7 @@ const KIND_OPTIONS: KindOption[] = [
       </div>
       <div class="flex flex-column gap-1">
         <label for="prune" class="text-sm text-color-secondary">Purger au-delà de (j)</label>
-        <p-inputnumber
-          inputId="prune"
-          [(ngModel)]="pruneDays"
-          [min]="1"
-          [max]="3650"
-          suffix=" j"
-        />
+        <p-inputnumber inputId="prune" [(ngModel)]="pruneDays" [min]="1" [max]="3650" suffix=" j" />
       </div>
       <p-button
         label="Purger"
@@ -94,31 +87,43 @@ const KIND_OPTIONS: KindOption[] = [
     </div>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="50"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[20, 50, 100]"
+      [globalFilterFields]="['kind', 'name']"
       dataKey="name"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher un artefact" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th style="width: 7rem">Kind</th>
-          <th>Nom</th>
-          <th style="width: 8rem">Taille</th>
-          <th style="width: 14rem">Modifié</th>
+          <th pSortableColumn="kind" style="width: 7rem">Kind <p-sortIcon field="kind" /></th>
+          <th pSortableColumn="name">Nom <p-sortIcon field="name" /></th>
+          <th pSortableColumn="size" style="width: 8rem">Taille <p-sortIcon field="size" /></th>
+          <th pSortableColumn="updated_at" style="width: 14rem">
+            Modifié <p-sortIcon field="updated_at" />
+          </th>
           <th style="width: 8rem">Actions</th>
+        </tr>
+        <tr>
+          <th><p-columnFilter field="kind" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="name" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="size" type="numeric" /></th>
+          <th><p-columnFilter field="updated_at" type="numeric" /></th>
+          <th></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-a>
         <tr>
           <td><p-tag [value]="a.kind" severity="secondary" /></td>
-          <td><code class="text-xs">{{ a.name }}</code></td>
+          <td>
+            <code class="text-xs">{{ a.name }}</code>
+          </td>
           <td>{{ formatSize(a.size) }}</td>
           <td>{{ formatDate(a.updated_at) }}</td>
           <td>
@@ -150,9 +155,6 @@ export class AdminArtifactsComponent implements OnInit {
 
   readonly kindOptions = KIND_OPTIONS;
   readonly items = signal<Artifact[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(50);
-  readonly first = signal(0);
   readonly loading = signal(false);
   readonly pruning = signal(false);
 
@@ -160,20 +162,11 @@ export class AdminArtifactsComponent implements OnInit {
   pruneDays = 30;
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
-  }
-
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
+    void this.load();
   }
 
   reload(): void {
-    this.first.set(0);
-    void this.load(0, this.rows());
+    void this.load();
   }
 
   downloadUrl(a: Artifact): string {
@@ -192,16 +185,18 @@ export class AdminArtifactsComponent implements OnInit {
     return d.toLocaleString('fr-BE');
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const page = await this.service.list({
-        kind: this.filterKind ?? undefined,
-        limit,
-        offset,
-      });
-      this.items.set(page.items);
-      this.total.set(page.total);
+      this.items.set(
+        await fetchAllPages((limit, offset) =>
+          this.service.list({
+            kind: this.filterKind ?? undefined,
+            limit,
+            offset,
+          }),
+        ),
+      );
     } catch {
       /* toast */
     } finally {

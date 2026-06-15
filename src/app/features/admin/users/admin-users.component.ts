@@ -3,14 +3,16 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
 import { AdminService } from '../../../core/api/admin.service';
+import { fetchAllPages } from '../../../core/api/pagination';
 import type { UserSummary } from '../../../core/api/types';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-admin-users',
@@ -25,9 +27,10 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     ToggleSwitchModule,
     PageHeaderComponent,
     EmptyStateComponent,
+    TableToolbarComponent,
   ],
   template: `
-    <app-page-header icon="pi-users" title="Utilisateurs" subtitle="Gestion des comptes">
+    <app-page-header icon="pi-users" title="Utilisateurs">
       <p-button
         label="Retour admin"
         icon="pi pi-arrow-left"
@@ -45,32 +48,49 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     </app-page-header>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="25"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[10, 25, 50]"
+      [globalFilterFields]="['email', 'id', 'timezone_name']"
       dataKey="id"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher un utilisateur" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th>Email</th>
-          <th style="width: 18rem">UUID</th>
-          <th>Fuseau</th>
-          <th style="width: 6rem">Actif</th>
-          <th style="width: 8rem">Superuser</th>
-          <th style="width: 7rem">Vérifié</th>
+          <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+          <th pSortableColumn="id" style="width: 18rem">UUID <p-sortIcon field="id" /></th>
+          <th pSortableColumn="timezone_name">Fuseau <p-sortIcon field="timezone_name" /></th>
+          <th pSortableColumn="is_active" style="width: 6rem">
+            Actif <p-sortIcon field="is_active" />
+          </th>
+          <th pSortableColumn="is_superuser" style="width: 8rem">
+            Superuser <p-sortIcon field="is_superuser" />
+          </th>
+          <th pSortableColumn="is_verified" style="width: 7rem">
+            Vérifié <p-sortIcon field="is_verified" />
+          </th>
+        </tr>
+        <tr>
+          <th><p-columnFilter field="email" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="id" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="timezone_name" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="is_active" type="boolean" /></th>
+          <th><p-columnFilter field="is_superuser" type="boolean" /></th>
+          <th><p-columnFilter field="is_verified" type="boolean" /></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-u>
         <tr>
           <td>{{ u.email }}</td>
-          <td><code class="text-xs">{{ u.id }}</code></td>
+          <td>
+            <code class="text-xs">{{ u.id }}</code>
+          </td>
           <td>{{ u.timezone_name }}</td>
           <td>
             <p-toggleswitch
@@ -110,33 +130,20 @@ export class AdminUsersComponent implements OnInit {
   private readonly messages = inject(MessageService);
 
   readonly items = signal<UserSummary[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(25);
-  readonly first = signal(0);
   readonly loading = signal(false);
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
-  }
-
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
+    void this.load();
   }
 
   reload(): void {
-    void this.load(this.first(), this.rows());
+    void this.load();
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const page = await this.service.listUsers(limit, offset);
-      this.items.set(page.items);
-      this.total.set(page.total);
+      this.items.set(await fetchAllPages((limit, offset) => this.service.listUsers(limit, offset)));
     } catch {
       /* toast */
     } finally {

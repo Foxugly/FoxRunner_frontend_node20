@@ -1,16 +1,18 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { JobsService } from '../../../core/api/jobs.service';
+import { fetchAllPages } from '../../../core/api/pagination';
 import type { Job } from '../../../core/api/types';
 import { ApiDatePipe } from '../../../shared/pipes/api-date.pipe';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { StatusTagComponent } from '../../../shared/components/status-tag/status-tag.component';
+import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-jobs-list',
@@ -24,9 +26,10 @@ import { StatusTagComponent } from '../../../shared/components/status-tag/status
     PageHeaderComponent,
     EmptyStateComponent,
     StatusTagComponent,
+    TableToolbarComponent,
   ],
   template: `
-    <app-page-header icon="pi-play" title="Jobs" subtitle="Exécutions asynchrones des scénarios">
+    <app-page-header icon="pi-play" title="Jobs">
       <p-button
         icon="pi pi-refresh"
         severity="secondary"
@@ -43,27 +46,43 @@ import { StatusTagComponent } from '../../../shared/components/status-tag/status
     </app-page-header>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="25"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[10, 25, 50]"
+      [globalFilterFields]="['job_id', 'target_id', 'status']"
       dataKey="job_id"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher dans les jobs" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th>Job ID</th>
-          <th>Scénario</th>
-          <th style="width: 7rem">Statut</th>
-          <th style="width: 4rem">Dry-run</th>
-          <th style="width: 10rem">Créé le</th>
-          <th style="width: 10rem">Terminé le</th>
+          <th pSortableColumn="job_id">Job ID <p-sortIcon field="job_id" /></th>
+          <th pSortableColumn="target_id">Scénario <p-sortIcon field="target_id" /></th>
+          <th pSortableColumn="status" style="width: 7rem">Statut <p-sortIcon field="status" /></th>
+          <th pSortableColumn="dry_run" style="width: 4rem">
+            Dry-run <p-sortIcon field="dry_run" />
+          </th>
+          <th pSortableColumn="created_at" style="width: 10rem">
+            Créé le <p-sortIcon field="created_at" />
+          </th>
+          <th pSortableColumn="finished_at" style="width: 10rem">
+            Terminé le <p-sortIcon field="finished_at" />
+          </th>
           <th style="width: 7rem">Actions</th>
+        </tr>
+        <tr>
+          <th><p-columnFilter field="job_id" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="target_id" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="status" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="dry_run" type="boolean" /></th>
+          <th><p-columnFilter field="created_at" type="date" /></th>
+          <th><p-columnFilter field="finished_at" type="date" /></th>
+          <th></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-j>
@@ -133,47 +152,31 @@ export class JobsListComponent implements OnInit, OnDestroy {
   private readonly messages = inject(MessageService);
 
   readonly items = signal<Job[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(25);
-  readonly first = signal(0);
   readonly loading = signal(false);
   readonly autoRefreshing = signal(false);
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
+    void this.load();
   }
 
   ngOnDestroy(): void {
     this.stopAutoRefresh();
   }
 
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
-  }
-
   reload(): void {
-    void this.load(this.first(), this.rows());
+    void this.load();
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     const me = this.auth.currentUser();
     this.loading.set(true);
     try {
-      const page = await this.service.list({
-        user_id: me?.id,
-        limit,
-        offset,
-      });
-      this.items.set(page.items);
-      this.total.set(page.total);
-      const hasActive = page.items.some(
-        (j) => j.status === 'queued' || j.status === 'running',
+      const items = await fetchAllPages((limit, offset) =>
+        this.service.list({ user_id: me?.id, limit, offset }),
       );
+      this.items.set(items);
+      const hasActive = items.some((j) => j.status === 'queued' || j.status === 'running');
       if (hasActive) this.startAutoRefresh();
       else this.stopAutoRefresh();
     } catch {

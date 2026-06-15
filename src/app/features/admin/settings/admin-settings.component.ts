@@ -7,14 +7,16 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
 import { AdminService } from '../../../core/api/admin.service';
+import { fetchAllPages } from '../../../core/api/pagination';
 import type { AppSetting } from '../../../core/api/types';
 import { ApiDatePipe } from '../../../shared/pipes/api-date.pipe';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { JsonEditorComponent } from '../../../shared/components/json-editor/json-editor.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-admin-settings',
@@ -33,6 +35,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     EmptyStateComponent,
     JsonEditorComponent,
     PageHeaderComponent,
+    TableToolbarComponent,
   ],
   template: `
     <app-page-header icon="pi-sliders-h" title="Paramètres applicatifs">
@@ -54,29 +57,40 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     </app-page-header>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="25"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[10, 25, 50]"
+      [globalFilterFields]="['key', 'description', 'updated_at']"
       dataKey="key"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher un paramètre" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th>Clé</th>
-          <th>Description</th>
-          <th style="width: 12rem">Modifié le</th>
+          <th pSortableColumn="key">Clé <p-sortIcon field="key" /></th>
+          <th pSortableColumn="description">Description <p-sortIcon field="description" /></th>
+          <th pSortableColumn="updated_at" style="width: 12rem">
+            Modifié le <p-sortIcon field="updated_at" />
+          </th>
           <th style="width: 9rem">Actions</th>
+        </tr>
+        <tr>
+          <th><p-columnFilter field="key" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="description" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="updated_at" type="text" [showMenu]="false" /></th>
+          <th></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-s>
         <tr>
-          <td><code>{{ s.key }}</code></td>
+          <td>
+            <code>{{ s.key }}</code>
+          </td>
           <td class="text-color-secondary">{{ s.description || '—' }}</td>
           <td>{{ s.updated_at | apiDate: 'medium' }}</td>
           <td>
@@ -164,9 +178,6 @@ export class AdminSettingsComponent implements OnInit {
   private readonly messages = inject(MessageService);
 
   readonly items = signal<AppSetting[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(25);
-  readonly first = signal(0);
   readonly loading = signal(false);
   readonly saving = signal(false);
 
@@ -182,27 +193,19 @@ export class AdminSettingsComponent implements OnInit {
   private latestValue: Record<string, unknown> = {};
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
-  }
-
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
+    void this.load();
   }
 
   reload(): void {
-    void this.load(this.first(), this.rows());
+    void this.load();
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const page = await this.service.listSettings(limit, offset);
-      this.items.set(page.items);
-      this.total.set(page.total);
+      this.items.set(
+        await fetchAllPages((limit, offset) => this.service.listSettings(limit, offset)),
+      );
     } catch {
       /* toast */
     } finally {

@@ -6,14 +6,16 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ScenariosService } from '../../../core/api/scenarios.service';
+import { fetchAllPages } from '../../../core/api/pagination';
 import type { ScenarioSummary } from '../../../core/api/types';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { TableToolbarComponent } from '../../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-scenarios-list',
@@ -30,13 +32,10 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     ConfirmDialogModule,
     PageHeaderComponent,
     EmptyStateComponent,
+    TableToolbarComponent,
   ],
   template: `
-    <app-page-header
-      icon="pi-sitemap"
-      title="Scénarios"
-      subtitle="Scénarios dont tu es propriétaire ou qui te sont partagés"
-    >
+    <app-page-header icon="pi-sitemap" title="Scénarios">
       <p-button
         icon="pi pi-refresh"
         severity="secondary"
@@ -45,38 +44,46 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
         (onClick)="reload()"
         pTooltip="Rafraîchir"
       />
-      <p-button
-        label="Nouveau"
-        icon="pi pi-plus"
-        routerLink="/scenarios/new"
-      />
+      <p-button label="Nouveau" icon="pi pi-plus" routerLink="/scenarios/new" />
     </app-page-header>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="25"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[10, 25, 50]"
+      [globalFilterFields]="['scenario_id', 'description', 'role']"
       dataKey="scenario_id"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher dans les scénarios" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th>Scenario ID</th>
-          <th>Description</th>
-          <th style="width: 8rem">Rôle</th>
-          <th style="width: 10rem">Réseau</th>
+          <th pSortableColumn="scenario_id">Scenario ID <p-sortIcon field="scenario_id" /></th>
+          <th pSortableColumn="description">Description <p-sortIcon field="description" /></th>
+          <th pSortableColumn="role" style="width: 8rem">Rôle <p-sortIcon field="role" /></th>
+          <th pSortableColumn="requires_enterprise_network" style="width: 10rem">
+            Réseau <p-sortIcon field="requires_enterprise_network" />
+          </th>
           <th style="width: 9rem">Actions</th>
+        </tr>
+        <tr>
+          <th><p-columnFilter field="scenario_id" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="description" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="role" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="requires_enterprise_network" type="boolean" /></th>
+          <th></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-s>
         <tr>
-          <td><a [routerLink]="['/scenarios', s.scenario_id]">{{ s.scenario_id }}</a></td>
+          <td>
+            <a [routerLink]="['/scenarios', s.scenario_id]">{{ s.scenario_id }}</a>
+          </td>
           <td>{{ s.description || '—' }}</td>
           <td>
             @if (s.role === 'owner') {
@@ -152,12 +159,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     >
       <div class="flex flex-column gap-3">
         <label for="newId">Nouvel identifiant</label>
-        <input
-          id="newId"
-          pInputText
-          [(ngModel)]="duplicateNewId"
-          placeholder="mon_scenario_v2"
-        />
+        <input id="newId" pInputText [(ngModel)]="duplicateNewId" placeholder="mon_scenario_v2" />
       </div>
       <ng-template pTemplate="footer">
         <p-button label="Annuler" severity="secondary" [text]="true" (onClick)="closeDuplicate()" />
@@ -182,9 +184,6 @@ export class ScenariosListComponent implements OnInit {
   private readonly messages = inject(MessageService);
 
   readonly items = signal<ScenarioSummary[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(25);
-  readonly first = signal(0);
   readonly loading = signal(false);
 
   duplicateOpen = false;
@@ -193,29 +192,21 @@ export class ScenariosListComponent implements OnInit {
   private duplicateSource: ScenarioSummary | null = null;
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
-  }
-
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
+    void this.load();
   }
 
   reload(): void {
-    void this.load(this.first(), this.rows());
+    void this.load();
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     const me = this.auth.currentUser();
     if (!me) return;
     this.loading.set(true);
     try {
-      const page = await this.service.list(me.id, limit, offset);
-      this.items.set(page.items);
-      this.total.set(page.total);
+      this.items.set(
+        await fetchAllPages((limit, offset) => this.service.list(me.id, limit, offset)),
+      );
     } catch {
       /* interceptor toasts */
     } finally {

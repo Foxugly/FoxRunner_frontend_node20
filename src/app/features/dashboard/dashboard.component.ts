@@ -13,7 +13,6 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     <app-page-header
       icon="pi-home"
       title="Tableau de bord"
-      [subtitle]="'Connecté en tant que ' + (auth.currentUser()?.email ?? '')"
     />
 
     <div class="grid">

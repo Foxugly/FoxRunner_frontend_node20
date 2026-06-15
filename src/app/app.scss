@@ -8,6 +8,17 @@
   border-radius: 0;
 }
 
+:host ::ng-deep .fox-menubar {
+  --p-menubar-gap: 0.125rem;
+  --p-menubar-base-item-padding: 0.5rem 0.625rem;
+}
+
+:host ::ng-deep .fox-user-menu-button .p-button-label {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .fox-main {
   flex: 1;
   padding: 1.5rem;

@@ -3,15 +3,17 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
-import { TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthService } from '../../core/auth/auth.service';
 import { HistoryService } from '../../core/api/history.service';
+import { fetchAllPages } from '../../core/api/pagination';
 import type { History } from '../../core/api/types';
 import { ApiDatePipe } from '../../shared/pipes/api-date.pipe';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { StatusTagComponent } from '../../shared/components/status-tag/status-tag.component';
+import { TableToolbarComponent } from '../../shared/components/table-toolbar/table-toolbar.component';
 
 interface StatusOption {
   label: string;
@@ -40,13 +42,10 @@ const STATUS_OPTIONS: StatusOption[] = [
     PageHeaderComponent,
     EmptyStateComponent,
     StatusTagComponent,
+    TableToolbarComponent,
   ],
   template: `
-    <app-page-header
-      icon="pi-history"
-      title="Historique"
-      subtitle="Exécutions passées, paginées depuis la base"
-    >
+    <app-page-header icon="pi-history" title="Historique">
       <p-button
         icon="pi pi-refresh"
         severity="secondary"
@@ -103,26 +102,37 @@ const STATUS_OPTIONS: StatusOption[] = [
     </div>
 
     <p-table
+      #table
       [value]="items()"
-      [lazy]="true"
       [paginator]="true"
-      [rows]="rows()"
-      [first]="first()"
-      [totalRecords]="total()"
+      [rows]="50"
       [loading]="loading()"
-      (onLazyLoad)="onLazyLoad($event)"
       [rowsPerPageOptions]="[20, 50, 100]"
+      [globalFilterFields]="['scenario_id', 'slot_id', 'status', 'step', 'message']"
       dataKey="id"
       styleClass="p-datatable-sm"
     >
+      <ng-template pTemplate="caption">
+        <app-table-toolbar [table]="table" placeholder="Rechercher dans l’historique" />
+      </ng-template>
       <ng-template pTemplate="header">
         <tr>
-          <th>Scénario</th>
-          <th>Slot</th>
-          <th style="width: 7rem">Statut</th>
-          <th style="width: 12rem">Exécuté le</th>
-          <th>Étape</th>
-          <th>Message</th>
+          <th pSortableColumn="scenario_id">Scénario <p-sortIcon field="scenario_id" /></th>
+          <th pSortableColumn="slot_id">Slot <p-sortIcon field="slot_id" /></th>
+          <th pSortableColumn="status" style="width: 7rem">Statut <p-sortIcon field="status" /></th>
+          <th pSortableColumn="executed_at" style="width: 12rem">
+            Exécuté le <p-sortIcon field="executed_at" />
+          </th>
+          <th pSortableColumn="step">Étape <p-sortIcon field="step" /></th>
+          <th pSortableColumn="message">Message <p-sortIcon field="message" /></th>
+        </tr>
+        <tr>
+          <th><p-columnFilter field="scenario_id" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="slot_id" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="status" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="executed_at" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="step" type="text" [showMenu]="false" /></th>
+          <th><p-columnFilter field="message" type="text" [showMenu]="false" /></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-h>
@@ -132,7 +142,11 @@ const STATUS_OPTIONS: StatusOption[] = [
           <td><app-status-tag [status]="h.status" /></td>
           <td>{{ h.executed_at | apiDate: 'medium' }}</td>
           <td>{{ h.step }}</td>
-          <td [pTooltip]="h.message" [style.max-width.rem]="30" class="text-overflow-ellipsis overflow-hidden white-space-nowrap">
+          <td
+            [pTooltip]="h.message"
+            [style.max-width.rem]="30"
+            class="text-overflow-ellipsis overflow-hidden white-space-nowrap"
+          >
             {{ h.message }}
           </td>
         </tr>
@@ -157,9 +171,6 @@ export class HistoryComponent implements OnInit {
 
   readonly statusOptions = STATUS_OPTIONS;
   readonly items = signal<History[]>([]);
-  readonly total = signal(0);
-  readonly rows = signal(50);
-  readonly first = signal(0);
   readonly loading = signal(false);
 
   filterStatus: string | null = null;
@@ -167,36 +178,29 @@ export class HistoryComponent implements OnInit {
   filterSlotId = '';
 
   ngOnInit(): void {
-    void this.load(0, this.rows());
-  }
-
-  onLazyLoad(ev: TableLazyLoadEvent): void {
-    const first = ev.first ?? 0;
-    const rows = ev.rows ?? this.rows();
-    this.first.set(first);
-    this.rows.set(rows);
-    void this.load(first, rows);
+    void this.load();
   }
 
   reload(): void {
-    this.first.set(0);
-    void this.load(0, this.rows());
+    void this.load();
   }
 
-  private async load(offset: number, limit: number): Promise<void> {
+  private async load(): Promise<void> {
     const me = this.auth.currentUser();
     if (!me) return;
     this.loading.set(true);
     try {
-      const page = await this.service.list(me.id, {
-        status: this.filterStatus ?? undefined,
-        scenario_id: this.filterScenarioId || undefined,
-        slot_id: this.filterSlotId || undefined,
-        limit,
-        offset,
-      });
-      this.items.set(page.items);
-      this.total.set(page.total);
+      this.items.set(
+        await fetchAllPages((limit, offset) =>
+          this.service.list(me.id, {
+            status: this.filterStatus ?? undefined,
+            scenario_id: this.filterScenarioId || undefined,
+            slot_id: this.filterSlotId || undefined,
+            limit,
+            offset,
+          }),
+        ),
+      );
     } catch {
       /* toast */
     } finally {
