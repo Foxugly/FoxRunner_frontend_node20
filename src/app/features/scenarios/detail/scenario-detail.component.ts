@@ -152,14 +152,14 @@ import { SharesDialogComponent } from '../shares/shares-dialog.component';
           <p-tablist>
             @for (col of collections; track col) {
               <p-tab [value]="col">
-                {{ labelFor(col) }} ({{ stepsByCollection()[col]?.length ?? 0 }})
+                {{ labelFor(col) }} ({{ stepsByCollection()[col].length }})
               </p-tab>
             }
           </p-tablist>
           <p-tabpanels>
             @for (col of collections; track col) {
               <p-tabpanel [value]="col">
-                @if ((stepsByCollection()[col]?.length ?? 0) === 0) {
+                @if (stepsByCollection()[col].length === 0) {
                   <app-empty-state
                     icon="pi-code"
                     title="Aucune étape"
