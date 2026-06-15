@@ -1,0 +1,28 @@
+.fox-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.fox-menubar {
+  border-radius: 0;
+}
+
+.fox-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.fox-offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  padding: 0.5rem 1rem;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: center;
+}
