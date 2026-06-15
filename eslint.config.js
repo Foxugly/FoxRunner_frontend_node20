@@ -41,6 +41,10 @@ module.exports = defineConfig([
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
+      // The Angular 20+ scaffold names the root class `App` (no `Component`
+      // suffix). angular-eslint 19's component-class-suffix rule still enforces
+      // the suffix, so disable it to keep the upstream Angular 21 naming.
+      '@angular-eslint/component-class-suffix': 'off',
     },
   },
   {
