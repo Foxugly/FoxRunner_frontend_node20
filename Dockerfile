@@ -1,6 +1,6 @@
-# Multi-stage build: Angular 21 + PrimeNG 21 → static files served by nginx.
+# Multi-stage build: Angular 19 + PrimeNG 19 (Node 20 compat fork) → static files served by nginx.
 
-FROM node:22-alpine AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 
 # Install dependencies first to leverage layer caching.
@@ -17,7 +17,7 @@ FROM nginx:1.27-alpine AS runtime
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Angular 21 output lives under dist/<project>/browser.
+# Angular output lives under dist/<project>/browser.
 COPY --from=build /app/dist/fox-runner/browser /usr/share/nginx/html
 
 EXPOSE 80

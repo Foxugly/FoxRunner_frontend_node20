@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 20.14
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20.14.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -29,7 +29,7 @@ jobs:
         run: npm run lint
 
       - name: Unit tests
-        run: npx ng test --watch=false
+        run: npm test
 
       - name: Production build
         run: npx ng build --configuration production

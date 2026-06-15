@@ -4,7 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Angular 21 + PrimeNG 21 frontend for the FoxRunner automation engine. The backend (Django + Django Ninja, previously FastAPI) lives in a separate repo: https://github.com/Foxugly/FoxRunner_server. The wire contract was intentionally preserved when the backend migrated from FastAPI to Django — see the **Backend migration notes** section below for the practical consequences.
+Angular 19 + PrimeNG 19 frontend for the FoxRunner automation engine (Node 20 compatibility fork). The backend (Django + Django Ninja, previously FastAPI) lives in a separate repo: https://github.com/Foxugly/FoxRunner_server. The wire contract was intentionally preserved when the backend migrated from FastAPI to Django — see the **Backend migration notes** section below for the practical consequences.
+
+> **Node 20 compatibility fork.** This repo (`FoxRunner_frontend_node20`) is downgraded to
+> **Angular 19 + PrimeNG 19** so it runs on **Node v20.14.0 / npm 10.7.0** (an IT-locked
+> corporate machine — Angular 20/21 require Node ≥ 20.19). It is iso-functional with the
+> upstream `FoxRunner_frontend` repo (Angular 21). Differences to know:
+> - **Unit tests** run on vitest via `@analogjs/vite-plugin-angular` (the `@angular/build:unit-test`
+>   builder does not exist in Angular 19). Run them with `npm test`, **not** `ng test`. TestBed
+>   bootstrap lives in `src/test-setup.ts`; config in `vite.config.mts` (`.mts`, not `.ts`, so the
+>   ESM AnalogJS plugin loads via `import()` — `require(ESM)` is unavailable before Node 20.19).
+> - `ngx-monaco-editor-v2` was removed (unused in `src/`); `uuid` is pinned to `^11`.
+> - `@angular-eslint/component-class-suffix` is disabled to keep the upstream `App` class name.
+> - `angular.json` sets `outputPath`/`index` explicitly (required by the v19 application builder).
+> - Divergence from upstream is intentional and not auto-synced.
 
 - API base URL (dev): `http://127.0.0.1:8000/api/v1` — **always** use the `/api/v1` prefix, never legacy routes.
 - Dev server: `http://localhost:4200` (backend CORS whitelists this origin).
