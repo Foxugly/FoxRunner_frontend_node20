@@ -161,14 +161,14 @@ import { ScenarioSlotsComponent } from './scenario-slots.component';
           <p-tablist>
             @for (col of collections; track col) {
               <p-tab [value]="col">
-                {{ labelFor(col) }} ({{ stepsByCollection()[col].length }})
+                {{ labelFor(col) }} ({{ stepsByCollection()[col]?.length ?? 0 }})
               </p-tab>
             }
           </p-tablist>
           <p-tabpanels>
             @for (col of collections; track col) {
               <p-tabpanel [value]="col">
-                @if (stepsByCollection()[col].length === 0) {
+                @if ((stepsByCollection()[col]?.length ?? 0) === 0) {
                   <app-empty-state
                     icon="pi-code"
                     title="Aucune étape"
@@ -339,7 +339,7 @@ export class ScenarioDetailComponent implements OnInit {
     a.href = url;
     a.download = `${s.scenario_id}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     this.messages.add({ severity: 'success', summary: 'Scénario exporté', detail: `${s.scenario_id}.json`, life: 3000 });
   }
 }
