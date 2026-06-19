@@ -53,7 +53,7 @@ type StepsByCollection = Record<StepCollectionName, Record<string, unknown>[]>;
       <p-tablist>
         @for (col of collections; track col) {
           <p-tab [value]="col">
-            {{ label(col) }} ({{ stepsByCollection()[col].length }})
+            {{ label(col) }} ({{ stepsByCollection()[col]?.length ?? 0 }})
           </p-tab>
         }
       </p-tablist>
@@ -67,7 +67,7 @@ type StepsByCollection = Record<StepCollectionName, Record<string, unknown>[]>;
                 (onClick)="openAdd(col)"
               />
             </div>
-            @if (stepsByCollection()[col].length === 0) {
+            @if ((stepsByCollection()[col]?.length ?? 0) === 0) {
               <app-empty-state
                 icon="pi-code"
                 title="Aucune étape"
