@@ -1,4 +1,5 @@
 import {
+  APP_INITIALIZER,
   ApplicationConfig,
   provideZoneChangeDetection,
 } from '@angular/core';
@@ -10,6 +11,7 @@ import { providePrimeNG } from 'primeng/config';
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 import { routes } from './app.routes';
+import { AuthService } from './core/auth/auth.service';
 import { authInterceptor } from './core/http/auth.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { primeNgFrenchTranslation } from './core/i18n/primeng-fr';
@@ -47,6 +49,20 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    {
+      provide: APP_INITIALIZER,
+      multi: true,
+      deps: [AuthService],
+      useFactory: (auth: AuthService) => async () => {
+        if (!auth.hasStoredRefresh()) return;
+        try {
+          await auth.refresh();
+          await auth.refreshCurrentUser();
+        } catch {
+          auth.clear();
+        }
+      },
+    },
     provideAnimations(),
     providePrimeNG({
       theme: {
