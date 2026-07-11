@@ -11,25 +11,23 @@
   `_forms-meta.scss`, `public/i18n/{fr,nl,en,it,es}.json` (mêmes clés), `public/foxugly-logo.svg`.
 - ✅ `styles.scss` : import des tokens + shell (additif). `--fox-primary` gardé en **alias legacy**.
 
-## À faire — porter l'overhaul de FoxRunner_frontend (adapté A19 / PrimeNG 19)
+## ✅ PORT COMPLET FAIT (PR #20, branche `feat/scss-standard`, 2026-07-11 — CI verte, 59/59 vitest)
 
-1. **i18n Transloco** : `npm i @jsverse/transloco@^8` ; copier `src/app/transloco-loader.ts`,
-   `src/app/core/i18n/**` (available-languages, language.service, language-switcher) ; `provideTransloco`
-   dans `app.config.ts`. Les JSON sont déjà là. (Transloco 8 compatible A19.)
-2. **Retrait PrimeFlex** : classes utilitaires → SCSS/BEM scopé, puis retirer `@use 'primeflex...'` +
-   la dép. Gate : **0 classe utilitaire résiduelle** avant de retirer l'import.
-3. **Chrome componentisé** : porter `core/layout/{topmenu,user-menu,main-layout,public-layout,footer}`
-   et `shared/components/{page-header,auth-card,empty-state,...}`. Topmenu : `[mode]`, actions
-   thème→langue→user (borderless icône+tooltip ; langue = **code 2 lettres**), **CTA Soutenir**
-   (rectangle arrondi emerald plein), drawer < 1024. `authGuard` invité → `/home`.
-4. **Pages publiques** : `features`, `about`, `home`, `soutenir`, `privacy`, `register`
-   (+ `*.text.ts` 5 langues, copiables). Routes sous `public-layout` (login/forgot/reset/magic aussi ;
-   attention à l'ordre des deux `path:''` — authGuard AVANT public).
-5. **Composants métier** : i18n + SCSS/BEM (0 style inline) + **severities** boutons
-   (création=`success`, suppression=`danger`, édition=`info`), grilles collections en
-   `repeat(auto-fit, minmax(16rem,1fr))`, page-header actions droite = icône+outlined+tooltip.
+Réalisé par **copie de `src/app` de FoxRunner_frontend** puis adaptation A19. Les 5 items ci-dessous
+sont **tous couverts** :
 
-### Gotchas A19 / PrimeNG 19 (≠ A21 / PrimeNG 21)
+1. [x] **i18n Transloco** — `core/i18n/**`, `transloco-loader.ts`, `provideTransloco`, JSON 5 langues.
+2. [x] **Retrait PrimeFlex** — import + dépendance retirés, 0 classe utilitaire résiduelle.
+3. [x] **Chrome componentisé** — `core/layout/{topmenu,user-menu,main-layout,public-layout,footer}` +
+   `shared/components/{page-header,auth-card,empty-state,…}`, topmenu `[mode]`, CTA Soutenir, drawer <1024.
+4. [x] **Pages publiques** — features/about/home/soutenir/privacy/register (+ `*.text.ts`), routes sous
+   `public-layout`, ordre des deux `path:''` respecté (authGuard avant public).
+5. [x] **Composants métier** — i18n + SCSS/BEM, severities boutons, grilles auto-fit, page-header actions.
+
+**Adaptations A19 appliquées** : drop `provideBrowserGlobalErrorListeners` (API A21 only) ; setup Transloco
+dans `src/test-setup.ts` (analog-vitest) **exclu de tsconfig.app** (sinon TS2304 `beforeEach` au build prod).
+
+### Gotchas A19 / PrimeNG 19 (≠ A21 / PrimeNG 21) — pour référence
 - Vérifier les props PrimeNG modifiées v19→v21 (`p-button`, `p-tabs`/`p-tab`, `p-menu`, `p-password`,
   `p-checkbox`, `p-select`, `p-toggleswitch`) et adapter au build.
 - `inlineStyleLanguage: scss` + `schematics.style: scss` dans `angular.json` (comme FoxRunner).
