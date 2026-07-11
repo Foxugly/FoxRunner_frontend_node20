@@ -1,28 +1,38 @@
-# Backlog — harmonisation layout · FoxRunner_frontend_node20 (A19)
+# BACKLOG layout — FoxRunner_frontend_node20 (miroir A19)
 
-> **Cible :** `STANDARD-frontend-layout.md` (repo `foxugly-ops`).
-> **Ce repo est le miroir de `FoxRunner_frontend` (A21)** — appliquer **exactement les
-> mêmes changements** (les 2 fronts restent identiques). Voir le backlog de A21 ; ce
-> fichier n'existe que pour ne pas oublier de propager.
-> **Statut :** à faire (audit 2026-07-10).
+> Réf : `foxugly-ops/STANDARD-frontend-layout.md` (**VALIDÉ 2026-07-11**). Implémentation de
+> référence complète = **`FoxRunner_frontend`** (A21, branche `feat/scss-tokens`). Ce repo est le
+> **miroir Angular 19 / node 20** et doit atteindre la **parité fonctionnelle** avec lui.
+>
+> ⚠️ **Travailler sur branche `feat/scss-standard` — JAMAIS `main`** (auto-deploy prod sur push main).
 
-## ✅ Déjà conforme
-- `app-topmenu` · `core/layout/topmenu/` · BEM `topbar__*` · fichiers séparés.
-- Toggle thème + `ThemeService` ; `app-page-header` 3 zones (`detail-header` supprimé) ;
-  `app-empty-state` + skeletons.
+## Fait (branche `feat/scss-standard`, 2026-07-11)
+- ✅ Fondation copiée de FoxRunner : `src/styles/_tokens.scss`, `_breakpoints.scss`, `_shell.scss`,
+  `_forms-meta.scss`, `public/i18n/{fr,nl,en,it,es}.json` (mêmes clés), `public/foxugly-logo.svg`.
+- ✅ `styles.scss` : import des tokens + shell (additif). `--fox-primary` gardé en **alias legacy**.
 
-## Phase 1 — structurel (identique à A21)
-- [ ] Thème : `fox-theme` → `theme` ; `.fox-dark` → `.dark-mode` ; **anti-FOUC** inline.
-- [ ] Topmenu : drawer 960 → **1024** ; ajouter `[mode]` + bouton « Se connecter » hors-auth.
-- [ ] Page-header : `[backLink]` → slot `[slot=left]`.
-- [ ] Shell : créer `main-layout` / `public-layout` (skip-link, `main-container`, `p-toast` unique).
-- [ ] Grille : `--content-max: 80rem` / `--content-pad: 1.5rem`, fonds pleine largeur.
-- [ ] Footer : version runtime + dark `:host-context`.
-- [ ] Breakpoints : `sm 640 / md 768 / lg 1024 / xl 1280`.
-- [ ] CSS : retirer PrimeFlex au fil des réécritures.
+## ✅ PORT COMPLET FAIT (PR #20, branche `feat/scss-standard`, 2026-07-11 — CI verte, 59/59 vitest)
 
-## Phase 2 — i18n (lourd)
-- [ ] Transloco + `app-language-switcher` (réf TM) + 5 langues fr/nl/en/it/es ; ordre thème → langue → user.
+Réalisé par **copie de `src/app` de FoxRunner_frontend** puis adaptation A19. Les 5 items ci-dessous
+sont **tous couverts** :
 
-## Hors périmètre
-- Features / About : N/A · Cloches : N/A.
+1. [x] **i18n Transloco** — `core/i18n/**`, `transloco-loader.ts`, `provideTransloco`, JSON 5 langues.
+2. [x] **Retrait PrimeFlex** — import + dépendance retirés, 0 classe utilitaire résiduelle.
+3. [x] **Chrome componentisé** — `core/layout/{topmenu,user-menu,main-layout,public-layout,footer}` +
+   `shared/components/{page-header,auth-card,empty-state,…}`, topmenu `[mode]`, CTA Soutenir, drawer <1024.
+4. [x] **Pages publiques** — features/about/home/soutenir/privacy/register (+ `*.text.ts`), routes sous
+   `public-layout`, ordre des deux `path:''` respecté (authGuard avant public).
+5. [x] **Composants métier** — i18n + SCSS/BEM, severities boutons, grilles auto-fit, page-header actions.
+
+**Adaptations A19 appliquées** : drop `provideBrowserGlobalErrorListeners` (API A21 only) ; setup Transloco
+dans `src/test-setup.ts` (analog-vitest) **exclu de tsconfig.app** (sinon TS2304 `beforeEach` au build prod).
+
+### Gotchas A19 / PrimeNG 19 (≠ A21 / PrimeNG 21) — pour référence
+- Vérifier les props PrimeNG modifiées v19→v21 (`p-button`, `p-tabs`/`p-tab`, `p-menu`, `p-password`,
+  `p-checkbox`, `p-select`, `p-toggleswitch`) et adapter au build.
+- `inlineStyleLanguage: scss` + `schematics.style: scss` dans `angular.json` (comme FoxRunner).
+- `@if/@for/@switch`, `input()`/signals : OK en A19.
+
+## Vérif
+`npm run lint` + `npm run build` verts à chaque étape ; smoke Playwright si présent. **Pas de merge
+sur `main` sans revue** (auto-deploy).

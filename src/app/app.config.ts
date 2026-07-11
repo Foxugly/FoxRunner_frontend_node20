@@ -1,20 +1,23 @@
 import {
   APP_INITIALIZER,
   ApplicationConfig,
+  isDevMode,
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import { provideTransloco } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 import { routes } from './app.routes';
-import { AuthService } from './core/auth/auth.service';
 import { authInterceptor } from './core/http/auth.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { primeNgFrenchTranslation } from './core/i18n/primeng-fr';
+import { AuthService } from './core/auth/auth.service';
+import { TranslocoHttpLoader } from './transloco-loader';
 
 // Emerald is the single fleet accent (OPERATIONS.md §3.15). Remap BOTH the
 // `primary` semantic AND the `green` primitive onto Emerald so that
@@ -64,12 +67,21 @@ export const appConfig: ApplicationConfig = {
       },
     },
     provideAnimations(),
+    provideTransloco({
+      config: {
+        availableLangs: ['fr', 'nl', 'en', 'it', 'es'],
+        defaultLang: 'fr',
+        reRenderOnLangChange: true,
+        prodMode: !isDevMode(),
+      },
+      loader: TranslocoHttpLoader,
+    }),
     providePrimeNG({
       theme: {
         preset: FoxAura,
         options: {
           prefix: 'p',
-          darkModeSelector: '.fox-dark',
+          darkModeSelector: '.dark-mode',
           cssLayer: false,
         },
       },
