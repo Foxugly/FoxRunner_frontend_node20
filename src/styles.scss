@@ -1,9 +1,11 @@
 @use 'primeicons/primeicons.css';
-@use 'primeflex/primeflex.css';
+@use 'primeflex/primeflex.css'; // legacy — à retirer (voir BACKLOG-layout.md)
+@use 'styles/tokens'; // design tokens de la flotte (STANDARD-frontend-layout.md)
+@use 'styles/shell'; // shell partagé main-layout / public-layout
 @use 'styles/forms-meta';
 
 :root {
-  --fox-primary: #10b981;
+  --fox-primary: #10b981; // alias legacy → migrer vers --accent
 }
 
 html,
