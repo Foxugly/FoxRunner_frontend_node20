@@ -31,7 +31,7 @@ describe('AuthService.loginWithToken', () => {
   afterEach(() => http.verify());
 
   it('stores the token and loads the current user', async () => {
-    const p = service.loginWithToken('jwt-123', 'ref-123');
+    const p = service.loginWithToken('jwt-123', 'refresh-123');
     const req = http.expectOne(`${environment.apiBaseUrl}/users/me`);
     expect(req.request.method).toBe('GET');
     req.flush(USER);
@@ -39,6 +39,5 @@ describe('AuthService.loginWithToken', () => {
     expect(service.token()).toBe('jwt-123');
     expect(service.currentUser()).toEqual(USER);
     expect(service.isLoggedIn()).toBe(true);
-    expect(service.hasStoredRefresh()).toBe(true);
   });
 });

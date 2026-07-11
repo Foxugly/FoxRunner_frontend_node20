@@ -7,8 +7,8 @@ import type { ApiError } from '../api/types';
 import { AuthService } from '../auth/auth.service';
 import { NetworkHealthService } from './network-health.service';
 
-// Module-level: one in-flight refresh shared by all concurrent 401s so that a
-// burst of expired-access requests triggers a single /auth/jwt/refresh call.
+// Module-level: one in-flight refresh shared by all concurrent 401s so we hit
+// /auth/jwt/refresh exactly once even when several requests fail together.
 let refreshInFlight: Promise<string> | null = null;
 
 function sharedRefresh(auth: AuthService): Promise<string> {
@@ -70,9 +70,8 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       const isAuthEndpoint =
         req.url.includes('/auth/jwt/login') || req.url.includes('/auth/jwt/refresh');
 
-      // On a 401 (outside the auth endpoints), try a transparent refresh: a
-      // single refresh is shared by all concurrent 401s, then the request is
-      // replayed with the new access token. If the refresh fails, sign out.
+      // On a 401 for a normal request, try a single shared refresh and replay
+      // the request with the fresh access token before giving up.
       if (err.status === 401 && !isAuthEndpoint && auth.hasStoredRefresh()) {
         return from(sharedRefresh(auth)).pipe(
           switchMap((access) =>

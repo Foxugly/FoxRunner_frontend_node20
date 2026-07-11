@@ -13,10 +13,10 @@ import { providePrimeNG } from 'primeng/config';
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 import { routes } from './app.routes';
-import { AuthService } from './core/auth/auth.service';
 import { authInterceptor } from './core/http/auth.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { primeNgFrenchTranslation } from './core/i18n/primeng-fr';
+import { AuthService } from './core/auth/auth.service';
 import { TranslocoHttpLoader } from './transloco-loader';
 
 // Emerald is the single fleet accent (OPERATIONS.md §3.15). Remap BOTH the
@@ -81,7 +81,7 @@ export const appConfig: ApplicationConfig = {
         preset: FoxAura,
         options: {
           prefix: 'p',
-          darkModeSelector: '.fox-dark',
+          darkModeSelector: '.dark-mode',
           cssLayer: false,
         },
       },
