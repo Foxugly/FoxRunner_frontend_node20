@@ -41,7 +41,7 @@
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "^1.10.0",
     "@analogjs/vitest-angular": "^1.10.0",
-    "@angular/build": "^19.2.0",
+    "@angular/build": "^22.1.2",
     "@angular/cli": "^19.2.0",
     "@angular/compiler-cli": "^19.2.0",
     "@eslint/js": "^9.17.0",
