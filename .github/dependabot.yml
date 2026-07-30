@@ -1,0 +1,57 @@
+# Dependabot — variante Node 20 de FoxRunner_frontend.
+#
+# Ce depot etait reste hors du deploiement de config du 2026-07-30, au motif
+# errone qu'il n'etait « pas rattrapable ». Verification faite, sur ses 29
+# alertes, QUATRE seulement n'avaient aucun correctif (les CVE Angular, non
+# retro-portees en 19.x) ; les 25 autres etaient corrigeables dans Angular 19.
+# Un simple sweep en a resolu 14. Il lui faut donc la meme config que le reste
+# de la flotte.
+#
+# Les majeures sont ignorees, et ici ce n'est pas seulement pour reduire le
+# bruit : c'est ce qui PROTEGE la variante. Une montee majeure d'Angular ou du
+# tooling ferait sortir ce depot de Node 20 / Angular 19, c'est-a-dire de sa
+# raison d'etre. Voir le README.
+#
+# github-actions fait exception : ses majeures sont groupees en un seul PR.
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Brussels"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Brussels"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns:
+          - "*"
